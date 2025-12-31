@@ -1,0 +1,13 @@
+{
+  "mappings": [
+    {
+      "source_file": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\V12.38.XX\\目标文件\\STM32\\debug\\M1_V5.012.xx.hex",
+      "target_dir": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\目标文件\\STM32\\Debug",
+      "open_dir": true
+    }
+  ],
+  "settings": {
+    "log_file": "sync_log.txt",
+    "auto_start": false
+  }
+}
