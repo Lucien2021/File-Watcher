@@ -5,6 +5,8 @@
 import os
 import sys
 import logging
+import threading
+import time
 from pathlib import Path
 from typing import Optional
 import pystray
@@ -28,6 +30,8 @@ class TrayApp:
         self.logger = logger or logging.getLogger(__name__)
         self.icon = None
         self.running = False
+        self.reload_signal_file = self.config_manager.get_config_path().parent / ".reload_config"
+        self.config_check_thread = None
         
     def _create_icon(self) -> Image.Image:
         """
@@ -60,6 +64,7 @@ class TrayApp:
             pystray.Menu: 菜单对象
         """
         menu_items = [
+            pystray.MenuItem("配置管理", self._open_config_gui),
             pystray.MenuItem("查看日志", self._open_log),
             pystray.MenuItem("编辑配置", self._edit_config),
             pystray.MenuItem("刷新配置", self._reload_config),
@@ -85,6 +90,24 @@ class TrayApp:
         except Exception as e:
             self.logger.error(f"打开日志文件失败: {e}")
     
+    def _open_config_gui(self, icon, item):
+        """打开配置管理GUI"""
+        try:
+            from config_gui import open_config_gui
+            import threading
+            
+            # 在新线程中打开GUI，避免阻塞托盘
+            def open_gui():
+                try:
+                    open_config_gui(str(self.config_manager.get_config_path()))
+                except Exception as e:
+                    self.logger.error(f"打开配置GUI失败: {e}")
+            
+            thread = threading.Thread(target=open_gui, daemon=True)
+            thread.start()
+        except Exception as e:
+            self.logger.error(f"打开配置GUI失败: {e}")
+    
     def _edit_config(self, icon, item):
         """编辑配置文件"""
         try:
@@ -97,7 +120,7 @@ class TrayApp:
         except Exception as e:
             self.logger.error(f"打开配置文件失败: {e}")
     
-    def _reload_config(self, icon, item):
+    def _reload_config(self, icon=None, item=None):
         """重新加载配置"""
         try:
             self.logger.info("重新加载配置...")
@@ -116,10 +139,31 @@ class TrayApp:
                 )
                 self.file_monitor.start()
                 self.logger.info("配置已重新加载")
+                
+                # 删除刷新信号文件
+                if self.reload_signal_file.exists():
+                    try:
+                        self.reload_signal_file.unlink()
+                    except:
+                        pass
             else:
                 self.logger.error("重新加载配置失败")
         except Exception as e:
             self.logger.error(f"重新加载配置失败: {e}")
+    
+    def _check_config_reload(self):
+        """检查是否需要重新加载配置（后台线程）"""
+        while self.running:
+            try:
+                # 检查刷新信号文件
+                if self.reload_signal_file.exists():
+                    self.logger.info("检测到配置更新，自动刷新...")
+                    self._reload_config()
+            except Exception as e:
+                self.logger.error(f"检查配置更新失败: {e}")
+            
+            # 每2秒检查一次
+            time.sleep(2)
     
     def _show_about(self, icon, item):
         """显示关于信息"""
@@ -161,6 +205,10 @@ class TrayApp:
             self.running = True
             self.logger.info("系统托盘应用已启动")
             
+            # 启动配置检查线程
+            self.config_check_thread = threading.Thread(target=self._check_config_reload, daemon=True)
+            self.config_check_thread.start()
+            
             # 运行托盘图标（阻塞）
             self.icon.run()
             
@@ -170,7 +218,10 @@ class TrayApp:
     
     def stop(self):
         """停止系统托盘应用"""
+        self.running = False
         if self.icon:
             self.icon.stop()
-        self.running = False
+        # 等待配置检查线程结束
+        if self.config_check_thread and self.config_check_thread.is_alive():
+            self.config_check_thread.join(timeout=1)
 

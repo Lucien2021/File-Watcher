@@ -4,6 +4,11 @@
       "source_file": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\V12.38.XX\\目标文件\\STM32\\debug\\M1_V5.012.xx.hex",
       "target_dir": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\目标文件\\STM32\\Debug",
       "open_dir": true
+    },
+    {
+      "source_file": "E:/SVN_NEW/38 SCW非标（支持进出水压力传感器)/HMI/V12.38.XX(HMI)/spac01.pkgx",
+      "target_dir": "E:/SVN_NEW/38 SCW非标（支持进出水压力传感器)/HMI/目标文件/SPAC01D71/Debug",
+      "open_dir": true
     }
   ],
   "settings": {
