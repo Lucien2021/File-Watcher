@@ -23,6 +23,7 @@ class ConfigManager:
         self.config: Optional[Dict] = None
         self.mappings: List[Dict] = []
         self.settings: Dict = {}
+        self.projects: Dict = {}  # 项目分组信息
         
     def _fix_json_paths(self, content: str) -> str:
         """
@@ -93,10 +94,14 @@ class ConfigManager:
             # 解析映射关系
             self.mappings = self.config.get('mappings', [])
             self.settings = self.config.get('settings', {})
+            self.projects = self.config.get('projects', {})
             
             # 验证配置
             if not self.validate_config():
                 return False
+            
+            # 识别项目并更新项目配置
+            self._identify_projects()
                 
             return True
         except Exception as e:
@@ -180,4 +185,151 @@ class ConfigManager:
             Path: 配置文件路径
         """
         return self.config_path
+    
+    def _extract_project_name(self, source_path: Path, target_path: Path) -> str:
+        """
+        从路径中提取项目名称
+        
+        Args:
+            source_path: 源文件路径
+            target_path: 目标目录路径
+            
+        Returns:
+            str: 项目名称
+        """
+        # 找到源文件和目标目录的最深共同父文件夹
+        source_parts = source_path.parts
+        target_parts = target_path.parts
+        
+        # 从根目录开始比较，找到共同部分
+        common_parts = []
+        min_len = min(len(source_parts), len(target_parts))
+        for i in range(min_len):
+            if source_parts[i] == target_parts[i]:
+                common_parts.append(source_parts[i])
+            else:
+                break
+        
+        # 如果找到共同部分，使用最后一个作为项目标识
+        # 通常项目名称在路径的较深层次
+        if len(common_parts) > 0:
+            # 尝试找到包含项目编号或名称的文件夹
+            # 例如: "38 SCW非标（支持进出水压力传感器)"
+            for part in reversed(common_parts):
+                # 如果文件夹名包含数字开头或特定模式，可能是项目名
+                if any(char.isdigit() for char in part) or len(part) > 10:
+                    return part
+            # 如果没有找到，使用最后一个共同部分
+            return common_parts[-1]
+        
+        # 如果路径完全不同，尝试从源文件路径中提取
+        # 查找包含数字开头的文件夹名
+        for part in reversed(source_parts):
+            if any(char.isdigit() for char in part) or len(part) > 10:
+                return part
+        
+        # 如果都找不到，使用源文件路径的父目录名
+        return source_path.parent.name if source_path.parent.name else "未知项目"
+    
+    def _identify_projects(self):
+        """
+        识别项目并分组映射
+        """
+        # 清空现有项目配置
+        identified_projects = {}
+        
+        for i, mapping in enumerate(self.mappings):
+            try:
+                source_path = Path(mapping['source_file'])
+                target_path = Path(mapping['target_dir'])
+                
+                # 提取项目名称
+                project_name = self._extract_project_name(source_path, target_path)
+                
+                # 如果项目不存在，创建新项目
+                if project_name not in identified_projects:
+                    # 检查是否已有保存的配置
+                    if project_name in self.projects:
+                        enabled = self.projects[project_name].get('enabled', True)
+                    else:
+                        enabled = True  # 默认启用
+                    
+                    identified_projects[project_name] = {
+                        'mapping_indices': [],
+                        'enabled': enabled
+                    }
+                
+                # 添加映射索引
+                identified_projects[project_name]['mapping_indices'].append(i)
+                
+            except Exception as e:
+                print(f"识别项目时出错 (映射 {i}): {e}")
+                # 使用默认项目名
+                default_name = "未分类项目"
+                if default_name not in identified_projects:
+                    identified_projects[default_name] = {
+                        'mapping_indices': [],
+                        'enabled': True
+                    }
+                identified_projects[default_name]['mapping_indices'].append(i)
+        
+        # 更新项目配置
+        self.projects = identified_projects
+    
+    def get_projects(self) -> Dict:
+        """
+        获取所有项目信息
+        
+        Returns:
+            Dict: 项目字典，格式为 {项目名: {enabled: bool, mapping_indices: List[int]}}
+        """
+        return self.projects
+    
+    def set_project_enabled(self, project_name: str, enabled: bool):
+        """
+        设置项目启用状态
+        
+        Args:
+            project_name: 项目名称
+            enabled: 是否启用
+        """
+        if project_name in self.projects:
+            self.projects[project_name]['enabled'] = enabled
+    
+    def get_enabled_mappings(self) -> List[Dict]:
+        """
+        获取所有启用的项目的映射
+        
+        Returns:
+            List[Dict]: 启用的映射列表
+        """
+        enabled_indices = set()
+        for project_name, project_info in self.projects.items():
+            if project_info.get('enabled', True):
+                enabled_indices.update(project_info['mapping_indices'])
+        
+        # 返回启用的映射，保持原有顺序
+        return [self.mappings[i] for i in sorted(enabled_indices) if i < len(self.mappings)]
+    
+    def save_config(self) -> bool:
+        """
+        保存配置到文件
+        
+        Returns:
+            bool: 保存是否成功
+        """
+        try:
+            config = {
+                'mappings': self.mappings,
+                'projects': self.projects,
+                'settings': self.settings
+            }
+            
+            with open(self.config_path, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            return True
+        except Exception as e:
+            print(f"保存配置文件失败: {e}")
+            return False
 

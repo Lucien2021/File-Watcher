@@ -23,11 +23,12 @@ class ConfigGUI:
         self.config_path = Path(config_path)
         self.config_manager = ConfigManager(str(self.config_path))
         self.mappings: List[Dict] = []
+        self.project_vars: Dict[str, tk.BooleanVar] = {}  # 项目选择变量
         
         # 创建主窗口
         self.root = tk.Tk()
         self.root.title("文件监控配置管理")
-        self.root.geometry("800x500")
+        self.root.geometry("900x600")
         self.root.resizable(True, True)
         
         # 加载配置
@@ -50,13 +51,16 @@ class ConfigGUI:
     def save_config(self):
         """保存配置"""
         try:
-            config = {
-                "mappings": self.mappings,
-                "settings": self.config_manager.get_settings()
-            }
+            # 更新项目启用状态
+            projects = self.config_manager.get_projects()
+            for project_name, var in self.project_vars.items():
+                if project_name in projects:
+                    self.config_manager.set_project_enabled(project_name, var.get())
             
-            with open(self.config_path, 'w', encoding='utf-8') as f:
-                json.dump(config, f, ensure_ascii=False, indent=2)
+            # 保存配置（包括项目状态）
+            if not self.config_manager.save_config():
+                messagebox.showerror("错误", "保存配置失败")
+                return False
             
             # 创建刷新信号文件，通知运行中的程序刷新配置
             signal_file = Path(self.config_path.parent / ".reload_config")
@@ -81,42 +85,23 @@ class ConfigGUI:
         title_label = ttk.Label(main_frame, text="文件监控配置管理", font=("Arial", 16, "bold"))
         title_label.pack(pady=(0, 10))
         
-        # 列表框架
-        list_frame = ttk.Frame(main_frame)
-        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        # 创建左右分栏
+        paned = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        # 列表标题
-        list_header = ttk.Label(list_frame, text="当前配置的映射关系：", font=("Arial", 10))
-        list_header.pack(anchor=tk.W)
+        # 左侧：项目选择区域
+        left_frame = ttk.Frame(paned, width=250)
+        paned.add(left_frame, weight=1)
+        self.create_project_selection(left_frame)
         
-        # 创建树形视图（列表）
-        columns = ("序号", "源文件", "目标目录")
-        self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=10)
-        
-        # 设置列
-        self.tree.heading("序号", text="序号")
-        self.tree.heading("源文件", text="源文件")
-        self.tree.heading("目标目录", text="目标目录")
-        
-        self.tree.column("序号", width=50, anchor=tk.CENTER)
-        self.tree.column("源文件", width=350)
-        self.tree.column("目标目录", width=350)
-        
-        # 滚动条
-        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
-        self.tree.configure(yscrollcommand=scrollbar.set)
-        
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        # 右侧：映射列表区域
+        right_frame = ttk.Frame(paned)
+        paned.add(right_frame, weight=2)
+        self.create_mapping_list(right_frame)
         
         # 按钮框架
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        ttk.Button(button_frame, text="添加映射", command=self.add_mapping).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="编辑选中", command=self.edit_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="删除选中", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
-        ttk.Button(button_frame, text="刷新列表", command=self.refresh_list).pack(side=tk.LEFT, padx=(0, 5))
         
         # 底部按钮框架
         bottom_frame = ttk.Frame(main_frame)
@@ -125,29 +110,163 @@ class ConfigGUI:
         ttk.Button(bottom_frame, text="保存配置", command=self.save_config).pack(side=tk.RIGHT, padx=(5, 0))
         ttk.Button(bottom_frame, text="取消", command=self.root.destroy).pack(side=tk.RIGHT)
     
+    def create_project_selection(self, parent):
+        """创建项目选择区域"""
+        # 项目选择标题
+        project_label = ttk.Label(parent, text="项目选择：", font=("Arial", 10, "bold"))
+        project_label.pack(anchor=tk.W, pady=(0, 5))
+        
+        # 全选/全不选按钮
+        select_frame = ttk.Frame(parent)
+        select_frame.pack(fill=tk.X, pady=(0, 10))
+        ttk.Button(select_frame, text="全选", command=self.select_all_projects).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(select_frame, text="全不选", command=self.deselect_all_projects).pack(side=tk.LEFT)
+        
+        # 项目列表框架（带滚动条）
+        project_list_frame = ttk.Frame(parent)
+        project_list_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 创建Canvas和Scrollbar用于项目列表
+        canvas = tk.Canvas(project_list_frame, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(project_list_frame, orient=tk.VERTICAL, command=canvas.yview)
+        self.project_content = ttk.Frame(canvas)
+        
+        self.project_content.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=self.project_content, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 刷新项目列表
+        self.refresh_project_list()
+    
+    def create_mapping_list(self, parent):
+        """创建映射列表区域"""
+        # 列表标题
+        list_header = ttk.Label(parent, text="当前配置的映射关系：", font=("Arial", 10))
+        list_header.pack(anchor=tk.W, pady=(0, 5))
+        
+        # 创建树形视图（列表）
+        columns = ("序号", "源文件", "目标目录")
+        self.tree = ttk.Treeview(parent, columns=columns, show="headings", height=15)
+        
+        # 设置列
+        self.tree.heading("序号", text="序号")
+        self.tree.heading("源文件", text="源文件")
+        self.tree.heading("目标目录", text="目标目录")
+        
+        self.tree.column("序号", width=50, anchor=tk.CENTER)
+        self.tree.column("源文件", width=300)
+        self.tree.column("目标目录", width=300)
+        
+        # 滚动条
+        scrollbar = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=self.tree.yview)
+        self.tree.configure(yscrollcommand=scrollbar.set)
+        
+        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 按钮框架
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(button_frame, text="添加映射", command=self.add_mapping).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="编辑选中", command=self.edit_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="删除选中", command=self.delete_selected).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Button(button_frame, text="刷新列表", command=self.refresh_list).pack(side=tk.LEFT, padx=(0, 5))
+    
+    def refresh_project_list(self):
+        """刷新项目列表"""
+        # 清空现有项目
+        for widget in self.project_content.winfo_children():
+            widget.destroy()
+        self.project_vars.clear()
+        
+        # 获取项目信息
+        projects = self.config_manager.get_projects()
+        
+        if not projects:
+            ttk.Label(self.project_content, text="未识别到项目", foreground="gray").pack(anchor=tk.W, pady=5)
+            return
+        
+        # 为每个项目创建复选框
+        for project_name, project_info in sorted(projects.items()):
+            frame = ttk.Frame(self.project_content)
+            frame.pack(fill=tk.X, pady=2)
+            
+            # 创建复选框
+            var = tk.BooleanVar(value=project_info.get('enabled', True))
+            self.project_vars[project_name] = var
+            
+            checkbox = ttk.Checkbutton(
+                frame,
+                text=project_name,
+                variable=var,
+                command=lambda pn=project_name: self.on_project_toggle(pn)
+            )
+            checkbox.pack(side=tk.LEFT, anchor=tk.W)
+            
+            # 显示映射数量
+            count = len(project_info.get('mapping_indices', []))
+            count_label = ttk.Label(frame, text=f"({count}个映射)", foreground="gray", font=("Arial", 8))
+            count_label.pack(side=tk.LEFT, padx=(5, 0))
+    
+    def on_project_toggle(self, project_name: str):
+        """项目选择切换时的回调"""
+        # 刷新映射列表，只显示选中项目的映射
+        self.refresh_list()
+    
+    def select_all_projects(self):
+        """全选所有项目"""
+        for var in self.project_vars.values():
+            var.set(True)
+        self.refresh_list()
+    
+    def deselect_all_projects(self):
+        """全不选所有项目"""
+        for var in self.project_vars.values():
+            var.set(False)
+        self.refresh_list()
+    
     def refresh_list(self):
-        """刷新列表显示"""
+        """刷新列表显示（只显示选中项目的映射）"""
         # 清空列表
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # 添加映射项
-        for i, mapping in enumerate(self.mappings, 1):
-            source_file = mapping.get('source_file', '')
-            target_dir = mapping.get('target_dir', '')
-            
-            # 截断过长的路径显示
-            if len(source_file) > 60:
-                source_file_display = "..." + source_file[-57:]
-            else:
-                source_file_display = source_file
-            
-            if len(target_dir) > 60:
-                target_dir_display = "..." + target_dir[-57:]
-            else:
-                target_dir_display = target_dir
-            
-            self.tree.insert("", tk.END, values=(i, source_file_display, target_dir_display), tags=(i-1,))
+        # 获取启用的项目
+        enabled_projects = set()
+        for project_name, var in self.project_vars.items():
+            if var.get():
+                projects = self.config_manager.get_projects()
+                if project_name in projects:
+                    enabled_projects.update(projects[project_name].get('mapping_indices', []))
+        
+        # 只显示启用项目的映射
+        display_index = 1
+        for i, mapping in enumerate(self.mappings):
+            if i in enabled_projects:
+                source_file = mapping.get('source_file', '')
+                target_dir = mapping.get('target_dir', '')
+                
+                # 截断过长的路径显示
+                if len(source_file) > 60:
+                    source_file_display = "..." + source_file[-57:]
+                else:
+                    source_file_display = source_file
+                
+                if len(target_dir) > 60:
+                    target_dir_display = "..." + target_dir[-57:]
+                else:
+                    target_dir_display = target_dir
+                
+                self.tree.insert("", tk.END, values=(display_index, source_file_display, target_dir_display), tags=(i,))
+                display_index += 1
     
     def add_mapping(self):
         """添加新的映射"""

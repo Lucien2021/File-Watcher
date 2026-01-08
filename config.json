@@ -3,39 +3,96 @@
     {
       "source_file": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\V12.38.XX\\目标文件\\STM32\\debug\\M1_V5.012.xx.hex",
       "target_dir": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\Software\\目标文件\\STM32\\Debug",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
       "source_file": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\HMI\\V12.38.XX(HMI)\\spac01.pkgx",
       "target_dir": "E:\\SVN_NEW\\38 SCW非标（支持进出水压力传感器)\\HMI\\目标文件\\SPAC01D71\\Debug",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
       "source_file": "E:\\SVN_NEW\\34 互联固安双冷源（三通阀）\\Software\\V12.34.XX\\目标文件\\STM32\\debug\\M1_V5.012.xx.hex",
       "target_dir": "E:\\SVN_NEW\\34 互联固安双冷源（三通阀）\\Software\\目标文件\\STM32\\Debug",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
       "source_file": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2025\\52 SCW支持除湿电磁阀\\HMI\\D71_V12.52.XX\\spac01.pkgx",
       "target_dir": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2025\\52 SCW支持除湿电磁阀\\HMI\\目标文件\\Debug",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
-      "source_file": "E:/SVN/Development/Project/SPAC01/tags/02.ProductRelease/01.software/01.SPAC01M/非标/2025/52 SCW支持除湿电磁阀/Software/V12.52.XX/目标文件/GD32/debug/M1_V5.022.xx.hex",
-      "target_dir": "E:/SVN/Development/Project/SPAC01/tags/02.ProductRelease/01.software/01.SPAC01M/非标/2025/52 SCW支持除湿电磁阀/Software/目标文件/GD32/Debug",
-      "open_dir": true
+      "source_file": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2025\\52 SCW支持除湿电磁阀\\Software\\V12.52.XX\\目标文件\\GD32\\debug\\M1_V5.022.xx.hex",
+      "target_dir": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2025\\52 SCW支持除湿电磁阀\\Software\\目标文件\\GD32\\Debug",
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
       "source_file": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2024\\177 氟泵改变频冷却水\\software\\V11.177.XX\\目标文件\\STM32\\debug\\M1_V5.012.xx.hex",
       "target_dir": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2024\\177 氟泵改变频冷却水\\software\\目标文件\\STM32\\debug",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     },
     {
       "source_file": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2024\\177 氟泵改变频冷却水\\software\\V11.177.XX\\目标文件\\GD32\\debug\\M1_V5.022.xx.hex",
       "target_dir": "E:\\SVN\\Development\\Project\\SPAC01\\tags\\02.ProductRelease\\01.software\\01.SPAC01M\\非标\\2024\\177 氟泵改变频冷却水\\software\\目标文件\\GD32",
-      "open_dir": true
+      "open_dir": true,
+      "wait_for_complete": true,
+      "wait_timeout": 10.0,
+      "check_interval": 0.2,
+      "initial_delay": 0.5
     }
   ],
+  "projects": {
+    "38 SCW非标（支持进出水压力传感器)": {
+      "mapping_indices": [
+        0,
+        1
+      ],
+      "enabled": false
+    },
+    "34 互联固安双冷源（三通阀）": {
+      "mapping_indices": [
+        2
+      ],
+      "enabled": true
+    },
+    "52 SCW支持除湿电磁阀": {
+      "mapping_indices": [
+        3,
+        4
+      ],
+      "enabled": false
+    },
+    "177 氟泵改变频冷却水": {
+      "mapping_indices": [
+        5,
+        6
+      ],
+      "enabled": false
+    }
+  },
   "settings": {
     "log_file": "sync_log.txt",
     "auto_start": false

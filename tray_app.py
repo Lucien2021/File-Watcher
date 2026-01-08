@@ -69,11 +69,106 @@ class TrayApp:
             pystray.MenuItem("编辑配置", self._edit_config),
             pystray.MenuItem("刷新配置", self._reload_config),
             pystray.Menu.SEPARATOR,
-            pystray.MenuItem("关于", self._show_about),
-            pystray.MenuItem("退出", self._quit_app)
         ]
         
+        # 添加项目选择菜单
+        project_menu_items = self._create_project_menu()
+        if project_menu_items:
+            menu_items.append(pystray.MenuItem("项目选择", pystray.Menu(*project_menu_items)))
+            menu_items.append(pystray.Menu.SEPARATOR)
+        
+        menu_items.extend([
+            pystray.MenuItem("关于", self._show_about),
+            pystray.MenuItem("退出", self._quit_app)
+        ])
+        
         return pystray.Menu(*menu_items)
+    
+    def _create_project_menu(self) -> list:
+        """创建项目选择菜单"""
+        try:
+            projects = self.config_manager.get_projects()
+            if not projects:
+                return []
+            
+            menu_items = []
+            
+            # 全选/全不选
+            enabled_count = sum(1 for p in projects.values() if p.get('enabled', True))
+            all_enabled = enabled_count == len(projects)
+            
+            menu_items.append(
+                pystray.MenuItem(
+                    "全选" if not all_enabled else "全不选",
+                    self._toggle_all_projects
+                )
+            )
+            menu_items.append(pystray.Menu.SEPARATOR)
+            
+            # 每个项目的菜单项
+            for project_name, project_info in sorted(projects.items()):
+                enabled = project_info.get('enabled', True)
+                count = len(project_info.get('mapping_indices', []))
+                menu_text = f"{'✓' if enabled else '○'} {project_name} ({count})"
+                
+                menu_items.append(
+                    pystray.MenuItem(
+                        menu_text,
+                        lambda icon, item, pn=project_name: self._toggle_project(pn)
+                    )
+                )
+            
+            return menu_items
+        except Exception as e:
+            self.logger.error(f"创建项目菜单失败: {e}")
+            return []
+    
+    def _toggle_project(self, project_name: str):
+        """切换项目启用状态"""
+        try:
+            projects = self.config_manager.get_projects()
+            if project_name not in projects:
+                return
+            
+            # 切换状态
+            current_state = projects[project_name].get('enabled', True)
+            self.config_manager.set_project_enabled(project_name, not current_state)
+            
+            # 保存配置
+            self.config_manager.save_config()
+            
+            # 重新加载配置以应用更改
+            self._reload_config()
+            
+            self.logger.info(f"项目 '{project_name}' 已{'启用' if not current_state else '禁用'}")
+        except Exception as e:
+            self.logger.error(f"切换项目状态失败: {e}")
+    
+    def _toggle_all_projects(self, icon, item):
+        """切换所有项目状态"""
+        try:
+            projects = self.config_manager.get_projects()
+            if not projects:
+                return
+            
+            # 检查当前状态
+            enabled_count = sum(1 for p in projects.values() if p.get('enabled', True))
+            all_enabled = enabled_count == len(projects)
+            
+            # 切换所有项目
+            new_state = not all_enabled
+            for project_name in projects.keys():
+                self.config_manager.set_project_enabled(project_name, new_state)
+            
+            # 保存配置
+            self.config_manager.save_config()
+            
+            # 重新加载配置
+            self._reload_config()
+            
+            self.logger.info(f"所有项目已{'启用' if new_state else '禁用'}")
+        except Exception as e:
+            self.logger.error(f"切换所有项目状态失败: {e}")
     
     def _open_log(self, icon, item):
         """打开日志文件"""
@@ -131,14 +226,22 @@ class TrayApp:
             
             # 重新加载配置
             if self.config_manager.load_config():
-                # 重新创建并启动监控
-                from file_monitor import FileMonitor
-                self.file_monitor = FileMonitor(
-                    self.config_manager.get_mappings(),
-                    self.logger
-                )
-                self.file_monitor.start()
-                self.logger.info("配置已重新加载")
+                # 获取启用的映射
+                enabled_mappings = self.config_manager.get_enabled_mappings()
+                projects = self.config_manager.get_projects()
+                enabled_projects = [name for name, info in projects.items() if info.get('enabled', True)]
+                
+                if not enabled_mappings:
+                    self.logger.warning("没有启用的项目，停止监控")
+                else:
+                    # 重新创建并启动监控（只监控启用的映射）
+                    from file_monitor import FileMonitor
+                    self.file_monitor = FileMonitor(
+                        enabled_mappings,
+                        self.logger
+                    )
+                    self.file_monitor.start()
+                    self.logger.info(f"配置已重新加载，监控 {len(enabled_projects)} 个项目，共 {len(enabled_mappings)} 个映射")
                 
                 # 删除刷新信号文件
                 if self.reload_signal_file.exists():

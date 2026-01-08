@@ -57,18 +57,29 @@ def main():
             return 1
         
         # 获取配置
-        mappings = config_manager.get_mappings()
+        all_mappings = config_manager.get_mappings()
+        enabled_mappings = config_manager.get_enabled_mappings()
         settings = config_manager.get_settings()
+        projects = config_manager.get_projects()
         
-        if not mappings:
+        if not all_mappings:
             logger.warning("配置文件中没有文件映射，请添加映射后重新启动")
             logger.info("程序将退出")
             return 1
         
-        logger.info(f"已加载 {len(mappings)} 个文件映射")
+        # 显示项目信息
+        enabled_projects = [name for name, info in projects.items() if info.get('enabled', True)]
+        logger.info(f"已加载 {len(all_mappings)} 个文件映射，共 {len(projects)} 个项目")
+        logger.info(f"当前启用 {len(enabled_projects)} 个项目: {', '.join(enabled_projects)}")
+        logger.info(f"将监控 {len(enabled_mappings)} 个映射")
         
-        # 创建文件监控器
-        file_monitor = FileMonitor(mappings, logger)
+        if not enabled_mappings:
+            logger.warning("没有启用的项目，请至少启用一个项目")
+            logger.info("程序将退出")
+            return 1
+        
+        # 创建文件监控器（只监控启用的映射）
+        file_monitor = FileMonitor(enabled_mappings, logger)
         
         # 启动文件监控
         file_monitor.start()
