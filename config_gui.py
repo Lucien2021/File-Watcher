@@ -90,19 +90,17 @@ class ConfigGUI:
         list_header.pack(anchor=tk.W)
         
         # 创建树形视图（列表）
-        columns = ("序号", "源文件", "目标目录", "自动打开")
+        columns = ("序号", "源文件", "目标目录")
         self.tree = ttk.Treeview(list_frame, columns=columns, show="headings", height=10)
         
         # 设置列
         self.tree.heading("序号", text="序号")
         self.tree.heading("源文件", text="源文件")
         self.tree.heading("目标目录", text="目标目录")
-        self.tree.heading("自动打开", text="自动打开")
         
         self.tree.column("序号", width=50, anchor=tk.CENTER)
-        self.tree.column("源文件", width=300)
-        self.tree.column("目标目录", width=300)
-        self.tree.column("自动打开", width=80, anchor=tk.CENTER)
+        self.tree.column("源文件", width=350)
+        self.tree.column("目标目录", width=350)
         
         # 滚动条
         scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self.tree.yview)
@@ -137,20 +135,19 @@ class ConfigGUI:
         for i, mapping in enumerate(self.mappings, 1):
             source_file = mapping.get('source_file', '')
             target_dir = mapping.get('target_dir', '')
-            open_dir = "是" if mapping.get('open_dir', False) else "否"
             
             # 截断过长的路径显示
-            if len(source_file) > 50:
-                source_file_display = "..." + source_file[-47:]
+            if len(source_file) > 60:
+                source_file_display = "..." + source_file[-57:]
             else:
                 source_file_display = source_file
             
-            if len(target_dir) > 50:
-                target_dir_display = "..." + target_dir[-47:]
+            if len(target_dir) > 60:
+                target_dir_display = "..." + target_dir[-57:]
             else:
                 target_dir_display = target_dir
             
-            self.tree.insert("", tk.END, values=(i, source_file_display, target_dir_display, open_dir), tags=(i-1,))
+            self.tree.insert("", tk.END, values=(i, source_file_display, target_dir_display), tags=(i-1,))
     
     def add_mapping(self):
         """添加新的映射"""
@@ -226,7 +223,7 @@ class MappingDialog:
         # 创建对话框窗口
         self.dialog = tk.Toplevel(parent)
         self.dialog.title(title)
-        self.dialog.geometry("600x250")
+        self.dialog.geometry("600x180")
         self.dialog.resizable(False, False)
         self.dialog.transient(parent)
         self.dialog.grab_set()
@@ -257,13 +254,9 @@ class MappingDialog:
         ttk.Entry(target_frame, textvariable=self.target_dir_var, width=50).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(target_frame, text="选择目录", command=self.select_target_dir).pack(side=tk.LEFT, padx=(5, 0))
         
-        # 自动打开目录
-        self.open_dir_var = tk.BooleanVar(value=mapping.get('open_dir', False) if mapping else False)
-        ttk.Checkbutton(main_frame, text="复制后自动打开目标目录", variable=self.open_dir_var).grid(row=2, column=1, sticky=tk.W, pady=5, padx=(10, 0))
-        
         # 按钮
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=3, column=0, columnspan=2, pady=20)
+        button_frame.grid(row=2, column=0, columnspan=2, pady=20)
         
         ttk.Button(button_frame, text="确定", command=self.ok_clicked).pack(side=tk.LEFT, padx=5)
         ttk.Button(button_frame, text="取消", command=self.cancel_clicked).pack(side=tk.LEFT, padx=5)
@@ -302,10 +295,15 @@ class MappingDialog:
             messagebox.showwarning("提示", "请选择目标目录")
             return
         
+        # 固定配置：始终打开目录，始终等待文件写入完成，使用默认时间参数
         self.result = {
             "source_file": source_file,
             "target_dir": target_dir,
-            "open_dir": self.open_dir_var.get()
+            "open_dir": True,  # 始终打开目录
+            "wait_for_complete": True,  # 始终等待文件写入完成
+            "wait_timeout": 10.0,  # 默认10秒
+            "check_interval": 0.2,  # 默认0.2秒
+            "initial_delay": 0.5  # 默认0.5秒
         }
         
         self.dialog.destroy()

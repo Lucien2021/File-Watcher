@@ -141,9 +141,12 @@ class ConfigManager:
             mapping['source_file'] = str(source_file)
             mapping['target_dir'] = str(target_dir)
             
-            # 设置默认值
-            if 'open_dir' not in mapping:
-                mapping['open_dir'] = False
+            # 设置默认值（固定配置：始终打开目录，始终等待文件写入完成）
+            mapping['open_dir'] = True  # 始终打开目录
+            mapping['wait_for_complete'] = True  # 始终等待文件写入完成
+            mapping['wait_timeout'] = 10.0  # 默认10秒超时
+            mapping['check_interval'] = 0.2  # 默认0.2秒检查间隔
+            mapping['initial_delay'] = 0.5  # 默认0.5秒初始延迟
                 
         # 设置默认设置
         if 'log_file' not in self.settings:
